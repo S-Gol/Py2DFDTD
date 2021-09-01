@@ -1,139 +1,177 @@
 import numpy as np
-from math import pi
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
+import time
+from numba import jit
+from numba import float64
 
-# Output periodicity in time steps
-IT_DISPLAY = 10
-
-# MODEL
-# Model dimensions, [m]
-nx = 401
-nz = 401
-dx = 10
-dz = 10
-
-# Elastic parameters
-vp = 3300.0 * np.ones([nz, nx])         # velocity of compressional waves, [m/s]
-vs = vp / 1.732                    # velocity of shear waves, [m/s]
-rho = 2800.0 * np.ones([nz,nx])      # density, [kg/m3]
-
-# Lame parameters
-lam = rho*(vp**2 - 2*vs**2)       # first Lame parameter
-mu = rho*vs**2                    # shear modulus, [N/m2]
-
-## TIME STEPPING
-t_total = .6                       # [sec] recording duration
-dt = 0.8/(np.max(vp) * np.sqrt(1.0/dx**2 + 1.0/dz**2))
-nt = round(t_total/dt)             # number of time steps
-t = np.arange(0,nt)*dt
-CFL = np.max(vp)*dt * np.sqrt(1.0/dx**2 + 1.0/dz**2)
-## SOURCE
-f0 = 10.0                          # dominant frequency of the wavelet
-t0 = 1.20 / f0                     # excitation time
-factor = 1e10                      # amplitude coefficient
-angle_force = 90.0                 # spatial orientation
-
-jsrc = round(nz/2)                 # source location along OZ
-isrc = round(nx/2)                 # source location along OX
-
-a = pi*pi*f0*f0
-dt2rho_src = dt**2/rho[jsrc, isrc]  
-source_term = factor * np.exp(-a*(t-t0)**2)                             # Gaussian
-# source_term =  -factor*2.0*a*(t-t0)*exp(-a*(t-t0)**2)                # First derivative of a Gaussian:
-# source_term = factor * (1.0 - 2.0*a*(t-t0).**2).*exp(-a*(t-t0).**2)        # Ricker source time function (second derivative of a Gaussian):
-
-force_x = np.sin(angle_force * pi / 180) * source_term * dt2rho_src / (dx * dz)
-force_z = np.cos(angle_force * pi / 180) * source_term * dt2rho_src / (dx * dz)
-min_wavelengh = 0.5*np.min(vs)/f0     # shortest wavelength bounded by velocity in the air
-
-## ABSORBING BOUNDARY (ABS)
-abs_thick = min(np.floor(0.15*nx), np.floor(0.15*nz))         # thicknes of the layer
-abs_rate = 0.3/abs_thick      # decay rate
-
-lmargin = [abs_thick,abs_thick]
-rmargin = [abs_thick,abs_thick]
-weights = np.ones([nz+2,nx+2])
-for iz in range(0,nz+2):
-    for ix in range(0,nx+2):
-        i = 0
-        k = 0
-        if (ix < lmargin[0] + 1):
-            i = lmargin[0] + 1 - ix
-        
-        if (iz < lmargin[1] + 1):
-            k = lmargin[1] + 1 - iz
-        
-        if (nx - rmargin[0] < ix):
-            i = ix - nx + rmargin[0]
-        
-        if (nz - rmargin[1] < iz):
-            k = iz - nz + rmargin[1]
-        
-        if (i == 0 and k == 0):
-            continue
-        
-        rr = abs_rate * abs_rate * (i*i + k*k)
-        weights[iz,ix] = np.exp(-rr)
+class Material:
+    """
+    Elastic wave properties for a material used in FDTD. All units are SI standard.
+    VP - Primary wave speed, m/s
+    VS - shear wave speed, m/s
+    Rho - density, kg/m3
+    Lam/mu - lame parameters
+    """
+    def __init__(self, vp=3300, vs=1905, rho = 2800):
+        self.vp = vp
+        self.vs = vs
+        self.rho = rho
+        self.lam = rho*(vp**2 - 2*vs**2)
+        self.mu = rho*vs**2   
     
+materials = {"steel":Material(vp=5960, vs=3235, rho=8000),
+             "generic":Material(),
+             "lightweightGeneric":Material(vp=596, vs=323, rho=800)}
 
 
-## SUMMARY
+@jit(nopython=True, parallel = True)
+def stepAllCalcs(dx, dz, ux3, uz3, ux2, uz2, ux1, uz1, lam, mu, lam_2mu, dt2rho, weights):
+    co_dxx = 1/dx**2
+    co_dzz = 1/dz**2
+    co_dxz = 1/(4.0 * dx * dz)
 
-## ALLOCATE MEMORY FOR WAVEFIELD
-ux3 = np.zeros([nz+2,nx+2])            # Wavefields at t
-uz3 = np.zeros([nz+2,nx+2])
-ux2 = np.zeros([nz+2,nx+2])            # Wavefields at t-1
-uz2 = np.zeros([nz+2,nx+2])
-ux1 = np.zeros([nz+2,nx+2])            # Wavefields at t-2
-uz1 = np.zeros([nz+2,nx+2])
-# Coefficients for derivatives
-co_dxx = 1/dx**2
-co_dzz = 1/dz**2
-co_dxz = 1/(4.0 * dx * dz)
-co_dzx = 1/(4.0 * dx * dz)
-dt2rho=(dt**2)/rho
-lam_2mu = lam + 2 * mu
-
-## Loop over TIME   
-ims = []
-fig, ax = plt.subplots()
-
-for it in range(0, nt):
-    ux3 = np.zeros(ux2.shape)
-    uz3 = np.zeros(uz2.shape)
-    # Second-order derivatives
-    # Ux
+    #Ux
     dux_dxx = co_dxx * (ux2[1:-1,0:-2] - 2*ux2[1:-1,1:-1] + ux2[1:-1,2:])
     dux_dzz = co_dzz * (ux2[0:-2,1:-1] - 2*ux2[1:-1,1:-1] + ux2[2:,1:-1])
     dux_dxz = co_dxz * (ux2[0:-2,2:] - ux2[2:,2:]- ux2[0:-2,0:-2] + ux2[2:,0:-2])
-    # Uz
 
+    #Uz
     duz_dxx = co_dxx * (uz2[1:-1,0:-2] - 2*uz2[1:-1,1:-1] + uz2[1:-1,2:])
     duz_dzz = co_dzz * (uz2[0:-2,1:-1] - 2*uz2[1:-1,1:-1] + uz2[2:,1:-1])
     duz_dxz = co_dxz * (uz2[0:-2,2:] - uz2[2:,2:]- uz2[0:-2,0:-2] + uz2[2:,0:-2])
 
     # Stress G
-    sigmas_ux = lam_2mu * dux_dxx + lam * duz_dxz + mu * (dux_dzz + duz_dxz)
-    sigmas_uz = mu * (dux_dxz + duz_dxx) + lam * dux_dxz + lam_2mu * duz_dzz
+    stressUX = lam_2mu * dux_dxx + lam * duz_dxz + mu * (dux_dzz + duz_dxz)
+    stressUZ = mu * (dux_dxz + duz_dxx) + lam * dux_dxz + lam_2mu * duz_dzz
     # U(t) = 2*U(t-1) - U(t-2) + G dt2/rho
-    ux3[1:-1,1:-1] = 2.0*ux2[1:-1,1:-1] - ux1[1:-1,1:-1] + sigmas_ux*dt2rho
-    uz3[1:-1,1:-1] = 2.0*uz2[1:-1,1:-1] - uz1[1:-1,1:-1] + sigmas_uz*dt2rho
-    # Add source tera
-    ux3[jsrc, isrc] = ux3[jsrc, isrc] + force_x[it]
-    uz3[jsrc, isrc] = uz3[jsrc, isrc] + force_z[it]
-    # Exchange data between t-2 (1), t-1 (2) and t (3) and apply ABS
+    ux3[1:-1,1:-1] = 2.0*ux2[1:-1,1:-1] - ux1[1:-1,1:-1] + stressUX*dt2rho
+    uz3[1:-1,1:-1] = 2.0*uz2[1:-1,1:-1] - uz1[1:-1,1:-1] + stressUZ*dt2rho
+
     ux1 = ux2 * weights
     ux2 = ux3 * weights
     uz1 = uz2 * weights
     uz2 = uz3 * weights
-    # Output
-    if it%IT_DISPLAY == 0:
-        print('Time step: {0}, time: {1} '.format(it, t[it]))
-        u=np.sqrt(ux3**2 + uz3**2)
-        im = ax.imshow(u, animated=True)
-        ims.append([im])
-ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True,repeat_delay=1000)
+
+    return [ux3, uz3, ux2, uz2, ux1, uz1]      
+
+    
+
+class FDTDModel:
+    """
+    Class representing an elastic wave simulation scenario
+    """
+    def __init__(self, sources,materialGrid=None, nx=400, nz=400, dx=10, dz=10, ntDisplay = 10):
+        """
+        tMax - max recording time
+        materialGrid - NDArray of materials.
+        sources - list of signal sources, formatted as [xPos, yPos, f(t)]
+        """
+        self.t=0
+        self.nt = 0
+        self.ntDisplay = ntDisplay
+        #Number of nodes
+        if materialGrid is None:
+            print("Filling grid")
+            materialGrid = np.full([nx,nz], materials["steel"])
+        self.nx = materialGrid.shape[0]
+        self.nz = materialGrid.shape[1]
+        
+        #Material properties for each node
+        self.rho = np.zeros([self.nx, self.nz])
+        self.vp = np.zeros([self.nx, self.nz])
+        self.vs = np.zeros([self.nx, self.nz])
+        self.lam = np.zeros([self.nx, self.nz])
+        self.mu = np.zeros([self.nx, self.nz])
 
 
-plt.show()
+        for iz in range(0,self.nz):
+            for ix in range(0,self.nx):
+                self.rho[ix,iz] = materialGrid[ix,iz].rho
+                self.vp[ix,iz] = materialGrid[ix,iz].vp
+                self.vs[ix,iz] = materialGrid[ix,iz].vs
+                self.lam[ix,iz] = materialGrid[ix,iz].lam
+                self.mu[ix,iz] = materialGrid[ix,iz].mu
+
+
+        #Size of field
+        self.dx = dx
+        self.dz = dz
+        #Max primary wave speed dictates DT
+        self.maxVP = np.max(self.vp)
+        self.dt = 0.8/( self.maxVP * np.sqrt(1.0/self.dx**2 + 1.0/self.dz**2))
+        self.CFL =  self.maxVP*self.dt * np.sqrt(1.0/self.dx**2 + 1.0/self.dz**2)
+        self.sources=sources
+
+        #Boundary - no reflections 
+        self.abs_thick = min(np.floor(0.15*self.nx), np.floor(0.15*self.nz))
+        self.abs_rate = 0.3/self.abs_thick
+
+        #Field setup 
+        self.weights = np.ones([self.nz+2,self.nx+2])
+        for iz in range(0,self.nz+2):
+            for ix in range(0,self.nx+2):
+                i = 0
+                k = 0
+                if (ix < self.abs_thick + 1):
+                    i = self.abs_thick + 1 - ix
+                
+                if (iz < self.abs_thick + 1):
+                    k = self.abs_thick + 1 - iz
+                
+                if (self.nx - self.abs_thick < ix):
+                    i = ix - self.nx + self.abs_thick
+                
+                if (self.nz - self.abs_thick < iz):
+                    k = iz - self.nz + self.abs_thick
+                
+                if (i == 0 and k == 0):
+                    continue
+                
+                rr = self.abs_rate * self.abs_rate * (i*i + k*k)
+                self.weights[iz,ix] = np.exp(-rr)
+        #Array allocation
+        ## ALLOCATE MEMORY FOR WAVEFIELD
+        self.ux3 = np.zeros([self.nz+2,self.nx+2])            # Wavefields at t
+        self.uz3 = np.zeros([self.nz+2,self.nx+2])
+        self.ux2 = np.zeros([self.nz+2,self.nx+2])            # Wavefields at t-1
+        self.uz2 = np.zeros([self.nz+2,self.nx+2])
+        self.ux1 = np.zeros([self.nz+2,self.nx+2])            # Wavefields at t-2
+        self.uz1 = np.zeros([self.nz+2,self.nx+2])
+        # Coefficients for derivatives
+        self.dt2rho=(self.dt**2)/self.rho
+        self.lam_2mu = self.lam + 2 * self.mu
+        #Visualization
+        fig, ax = plt.subplots()
+        self.fig = fig
+        self.ax = ax
+        self.ims = []
+        self.frameTime = []
+
+        print("Initialized elastic FDTD field of size {0}".format(str(self.nx)+","+str(self.nz)))
+
+    def timeStep(self):
+        self.t += self.dt
+        self.nt += 1
+        realTime = time.time()
+
+        #Numba jit calculations
+        newVels = stepAllCalcs(self.dx, self.dz, self.ux3, self.uz3, self.ux2, self.uz2, 
+                                self.ux1, self.uz1, self.lam, self.mu, self.lam_2mu, 
+                                self.dt2rho, self.weights)
+        
+        self.ux3, self.uz3, self.ux2, self.uz2, self.ux1, self.uz1 = newVels
+
+        #Source velocity
+        for source in self.sources:
+            v = source[2](self.t)
+            self.ux2[source[0], source[1]] += v[0]
+            self.uz2[source[0], source[1]] += v[1]
+
+
+        if self.nt%self.ntDisplay == 0:
+            print('Time step: {0}, time: {1} '.format(self.nt, self.t))
+            u=np.sqrt(self.ux3**2 + self.uz3**2)
+            im = self.ax.imshow(u, animated=True)
+            self.ims.append([im])
+
+        self.frameTime.append((time.time()-realTime)*1000)
