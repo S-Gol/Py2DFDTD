@@ -15,7 +15,7 @@ A Python implementation of two-dimensional, Finite Difference Time Domain (FDTD)
 8. High performance Numba NJIT support
 
 # Usage:
-TBD
+See Jupyter notebook examples
 
 # Requirements:
 - FDTDElastic:
