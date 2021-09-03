@@ -1,8 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import time
-from numba import jit
-from numba import float64
+from numba import njit
 
 class Material:
     """
@@ -24,7 +23,7 @@ materials = {"steel":Material(vp=5960, vs=3235, rho=8000),
              "lightweightGeneric":Material(vp=596, vs=323, rho=800)}
 
 
-@jit(nopython=True, parallel = True)
+@njit(fastmath=True, parallel=True)
 def stepAllCalcs(dx, dz, ux3, uz3, ux2, uz2, ux1, uz1, lam, mu, lam_2mu, dt2rho, weights):
     co_dxx = 1/dx**2
     co_dzz = 1/dz**2
