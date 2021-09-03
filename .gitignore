@@ -2,3 +2,5 @@
 FDTD.code-workspace
 
 __pycache__/
+
+FDTDElastic/__pycache__/

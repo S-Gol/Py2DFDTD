@@ -18,11 +18,6 @@ class Material:
         self.lam = rho*(vp**2 - 2*vs**2)
         self.mu = rho*vs**2   
     
-materials = {"steel":Material(vp=5960, vs=3235, rho=8000),
-             "generic":Material(),
-             "lightweightGeneric":Material(vp=596, vs=323, rho=800)}
-
-
 @njit(fastmath=True, parallel=True)
 def stepAllCalcs(dx, dz, ux3, uz3, ux2, uz2, ux1, uz1, lam, mu, lam_2mu, dt2rho, weights):
     co_dxx = 1/dx**2
@@ -55,7 +50,7 @@ def stepAllCalcs(dx, dz, ux3, uz3, ux2, uz2, ux1, uz1, lam, mu, lam_2mu, dt2rho,
 
     
 
-class FDTDModel:
+class FDTDElasticModel:
     """
     Class representing an elastic wave simulation scenario
     """

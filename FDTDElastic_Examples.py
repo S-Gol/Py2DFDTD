@@ -1,4 +1,5 @@
-from FDTDElastic import Material, materials, FDTDModel
+from FDTD.FDTDElastic import FDTDElasticModel
+from FDTD.Materials import materials
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy import pi
@@ -18,7 +19,7 @@ sources.append([100,100, sourceFunc])
 materialGrid = np.full([400,400], materials["steel"])
 materialGrid[200:250, 0::] = materials["generic"]
 
-model = FDTDModel(sources, materialGrid=materialGrid, dx=10, dz=10)
+model = FDTDElasticModel(sources, materialGrid=materialGrid, dx=10, dz=10)
 
 for i in range(1000):
     model.timeStep()
