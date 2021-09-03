@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 from numba import njit
+from FDTD.Materials import materials
 
 class Material:
     """
@@ -161,11 +162,12 @@ class FDTDElasticModel:
             self.ux2[source[0], source[1]] += v[0]
             self.uz2[source[0], source[1]] += v[1]
 
-
-        if self.nt%self.ntDisplay == 0:
-            print('Time step: {0}, time: {1} '.format(self.nt, self.t))
-            u=np.sqrt(self.ux3**2 + self.uz3**2)
-            im = self.ax.imshow(u, animated=True)
-            self.ims.append([im])
-
         self.frameTime.append((time.time()-realTime)*1000)
+
+        if self.ntDisplay != 0:
+            if self.nt%self.ntDisplay == 0:
+                #print('Time step: {0}, time: {1} '.format(self.nt, self.t))
+                u=np.sqrt(self.ux3**2 + self.uz3**2)
+                im = self.ax.imshow(u, animated=True)
+                self.ims.append([im])
+

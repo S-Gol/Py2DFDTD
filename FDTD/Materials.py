@@ -1,4 +1,4 @@
-from FDTDElastic import Material
+from FDTD.FDTDElastic import Material
     
 materials = {
             "steel":Material(vp=5960, vs=3235, rho=8000),
