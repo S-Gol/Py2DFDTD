@@ -1,6 +1,6 @@
 ## Py2DFDTD
 
-A Python implementation of two-dimensional, Finite Difference Time Dependent (FDTD) simulation of elastic wave propagation in solids. Uses Numba's JIT compiler to accelerate derivative calculations. 
+A Python implementation of two-dimensional, Finite Difference Time Domain (FDTD) simulation of elastic wave propagation in solids. Uses Numba's JIT compiler to accelerate derivative calculations. 
 
 ![example-gif](./ReadMeExamples/MiddleReflector.gif)
 
@@ -16,3 +16,12 @@ A Python implementation of two-dimensional, Finite Difference Time Dependent (FD
 
 # Usage:
 TBD
+
+# Requirements:
+- FDTDElastic:
+  - Numpy
+  - Numba
+- FDTDElastic_Examples:
+  - Numpy
+  - Matplotlib
+  - FDTDElastic 
