@@ -25,3 +25,6 @@ See Jupyter notebook examples
   - Numpy
   - Matplotlib
   - FDTDElastic 
+
+Algorithm based on Matlab example here:
+https://github.com/ovcharenkoo/WaveProp_in_MATLAB
