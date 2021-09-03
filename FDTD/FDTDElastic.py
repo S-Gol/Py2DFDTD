@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import time
 from numba import njit
 from FDTD.Materials import materials
@@ -121,12 +120,9 @@ class FDTDElasticModel:
         self.dt2rho=(self.dt**2)/self.rho
         self.lam_2mu = self.lam + 2 * self.mu
         #Visualization
-        fig, ax = plt.subplots()
-        self.fig = fig
-        self.ax = ax
-        self.ims = []
         self.frameTime = []
-
+        self.results = []
+        self.resultMagnitude=[]
         print("Initialized elastic FDTD field of size {0}".format(str(self.nx)+","+str(self.nz)))
 
     def timeStep(self):
@@ -148,11 +144,5 @@ class FDTDElasticModel:
             self.uz2[source[0], source[1]] += v[1]
 
         self.frameTime.append((time.time()-realTime)*1000)
-
-        if self.ntDisplay != 0:
-            if self.nt%self.ntDisplay == 0:
-                #print('Time step: {0}, time: {1} '.format(self.nt, self.t))
-                u=np.sqrt(self.ux3**2 + self.uz3**2)
-                im = self.ax.imshow(u, animated=True)
-                self.ims.append([im])
-
+        self.results.append((self.ux3, self.uz3))
+        self.resultMagnitude.append(np.sqrt(self.ux3**2 + self.uz3**2))

@@ -23,5 +23,4 @@ TBD
   - Numba
 - FDTDElastic_Examples:
   - Numpy
-  - Matplotlib
-  - FDTDElastic 
+  - Plotly
