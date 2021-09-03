@@ -1,0 +1,35 @@
+Metadata-Version: 1.0
+Name: PY2DFDTD
+Version: 0.1.0
+Summary: 2D Elastic Wave FDM
+Home-page: http://pypi.python.org/pypi/PackageName/
+Author: Seth Golembeski
+Author-email: smgole1@outlook.com
+License: LICENSE.txt
+Description: ## Py2DFDTD
+        
+        A Python implementation of two-dimensional, Finite Difference Time Domain (FDTD) simulation of elastic wave propagation in solids. Uses Numba's JIT compiler to accelerate derivative calculations. 
+        
+        ![example-gif](./ReadMeExamples/MiddleReflector.gif)
+        
+        # Features:
+        1. User-defined materials
+        2. User-defined source / emitter functions
+        3. Multi-Material simulations 
+        4. Arbitary numbers of sources, materials, reflectors
+        5. Variable simulation area size
+        6. Variable node size
+        7. Variable output intervals
+        8. High performance Numba NJIT support
+        
+        # Usage:
+        TBD
+        
+        # Requirements:
+        - FDTDElastic:
+          - Numpy
+          - Numba
+        - FDTDElastic Jupyter:
+          - Numpy
+        
+Platform: UNKNOWN

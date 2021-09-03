@@ -1,0 +1,10 @@
+setup.py
+FDTD/FDTDElastic.py
+FDTD/Material.py
+FDTD/Materials.py
+FDTD/__init__.py
+PY2DFDTD.egg-info/PKG-INFO
+PY2DFDTD.egg-info/SOURCES.txt
+PY2DFDTD.egg-info/dependency_links.txt
+PY2DFDTD.egg-info/requires.txt
+PY2DFDTD.egg-info/top_level.txt
