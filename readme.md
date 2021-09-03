@@ -21,5 +21,5 @@ TBD
 - FDTDElastic:
   - Numpy
   - Numba
-- FDTDElastic_Examples:
+- FDTDElastic Jupyter:
   - Numpy
