@@ -14,10 +14,11 @@ def sourceFunc(t):
     return [0,v]
 
 sources =[]
-sources.append([100,100, sourceFunc])
+sources.append([300,300, sourceFunc])
 
 materialGrid = np.full([400,400], materials["steel"])
 materialGrid[200:250, 0::] = materials["generic"]
+materialGrid[0::,200:250] = materials["lightweightGeneric"]
 
 model = FDTDElasticModel(sources, materialGrid=materialGrid, dx=10, dz=10)
 
