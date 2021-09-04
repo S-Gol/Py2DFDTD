@@ -39,12 +39,13 @@ class FDTDElasticModel:
     """
     Class representing an elastic wave simulation scenario
     """
-    def __init__(self, sources,materialGrid=None, nx=400, nz=400, dx=10, dz=10, ntDisplay = 10):
+    def __init__(self, sources,materialGrid=None, nx=400, nz=400, ds=10, ntDisplay = 10):
         """
         tMax - max recording time
         materialGrid - NDArray of materials.
         sources - list of signal sources, formatted as [xPos, yPos, f(t)]
         """
+        self.dx=self.dz=ds
         self.t=0
         self.nt = 0
         self.ntDisplay = ntDisplay
@@ -71,10 +72,6 @@ class FDTDElasticModel:
                 self.lam[ix,iz] = materialGrid[ix,iz].lam
                 self.mu[ix,iz] = materialGrid[ix,iz].mu
 
-
-        #Size of field
-        self.dx = dx
-        self.dz = dz
         #Max primary wave speed dictates DT
         self.maxVP = np.max(self.vp)
         self.dt = 0.8/( self.maxVP * np.sqrt(1.0/self.dx**2 + 1.0/self.dz**2))
@@ -86,7 +83,7 @@ class FDTDElasticModel:
         self.abs_rate = 0.3/self.abs_thick
 
         #Field setup 
-        self.weights = np.ones([self.nz+2,self.nx+2])
+        self.weights = np.ones([self.nx+2,self.nz+2])
         for iz in range(0,self.nz+2):
             for ix in range(0,self.nx+2):
                 i = 0
@@ -107,15 +104,15 @@ class FDTDElasticModel:
                     continue
                 
                 rr = self.abs_rate * self.abs_rate * (i*i + k*k)
-                self.weights[iz,ix] = np.exp(-rr)
+                self.weights[ix,iz] = np.exp(-rr)
         #Array allocation
         ## ALLOCATE MEMORY FOR WAVEFIELD
-        self.ux3 = np.zeros([self.nz+2,self.nx+2])            # Wavefields at t
-        self.uz3 = np.zeros([self.nz+2,self.nx+2])
-        self.ux2 = np.zeros([self.nz+2,self.nx+2])            # Wavefields at t-1
-        self.uz2 = np.zeros([self.nz+2,self.nx+2])
-        self.ux1 = np.zeros([self.nz+2,self.nx+2])            # Wavefields at t-2
-        self.uz1 = np.zeros([self.nz+2,self.nx+2])
+        self.ux3 = np.zeros([self.nx+2,self.nz+2])            # Wavefields at t
+        self.uz3 = np.zeros([self.nx+2,self.nz+2])
+        self.ux2 = np.zeros([self.nx+2,self.nz+2])            # Wavefields at t-1
+        self.uz2 = np.zeros([self.nx+2,self.nz+2])
+        self.ux1 = np.zeros([self.nx+2,self.nz+2])            # Wavefields at t-2
+        self.uz1 = np.zeros([self.nx+2,self.nz+2])
         # Coefficients for derivatives
         self.dt2rho=(self.dt**2)/self.rho
         self.lam_2mu = self.lam + 2 * self.mu
@@ -139,7 +136,7 @@ class FDTDElasticModel:
 
         #Source velocity
         for source in self.sources:
-            v = source[2](self.t)
+            v = source[2](self.t, self.nt)
             self.ux2[source[0], source[1]] += v[0]
             self.uz2[source[0], source[1]] += v[1]
 

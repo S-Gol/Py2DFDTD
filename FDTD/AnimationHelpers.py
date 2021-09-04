@@ -6,7 +6,7 @@ def matplotlibAnimation(frames, nFrames=5):
     import matplotlib.pyplot as plt
     import matplotlib.animation as animation
 
-    framesDownscaled = frames[::5]
+    framesDownscaled = frames[::nFrames]
     ims=[]
     fig, ax = plt.subplots()
     for i in range(len(framesDownscaled)):
