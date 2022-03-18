@@ -2,8 +2,9 @@ import numpy as np
 import time
 from numba import njit
 from FDTD.Materials import materials
-    
-@njit(fastmath=True, parallel=True)
+
+
+@njit(parallel = True)  
 def stepAllCalcs(dx, dz, ux3, uz3, ux2, uz2, ux1, uz1, lam, mu, lam_2mu, dt2rho, weights):
     co_dxx = 1/dx**2
     co_dzz = 1/dz**2
@@ -22,6 +23,7 @@ def stepAllCalcs(dx, dz, ux3, uz3, ux2, uz2, ux1, uz1, lam, mu, lam_2mu, dt2rho,
     # Stress G
     stressUX = lam_2mu * dux_dxx + lam * duz_dxz + mu * (dux_dzz + duz_dxz)
     stressUZ = mu * (dux_dxz + duz_dxx) + lam * dux_dxz + lam_2mu * duz_dzz
+
     # U(t) = 2*U(t-1) - U(t-2) + G dt2/rho
     ux3[1:-1,1:-1] = 2.0*ux2[1:-1,1:-1] - ux1[1:-1,1:-1] + stressUX*dt2rho
     uz3[1:-1,1:-1] = 2.0*uz2[1:-1,1:-1] - uz1[1:-1,1:-1] + stressUZ*dt2rho
@@ -39,7 +41,7 @@ class FDTDElasticModel:
     """
     Class representing an elastic wave simulation scenario
     """
-    def __init__(self, sources,materialGrid=None, nx=400, nz=400, ds=10, ntDisplay = 10):
+    def __init__(self, sources,materialGrid=None, ds=10):
         """
         tMax - max recording time
         materialGrid - NDArray of materials.
@@ -48,11 +50,10 @@ class FDTDElasticModel:
         self.dx=self.dz=ds
         self.t=0
         self.nt = 0
-        self.ntDisplay = ntDisplay
         #Number of nodes
         if materialGrid is None:
             print("Filling grid")
-            materialGrid = np.full([nx,nz], materials["steel"])
+            materialGrid = np.full([self.nx,self.nz], materials["steel"])
         self.nx = materialGrid.shape[0]
         self.nz = materialGrid.shape[1]
         
